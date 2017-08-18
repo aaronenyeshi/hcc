@@ -13,7 +13,7 @@
 #include "hc.hpp"
 #include "hsa_atomic.h"
 
-#define HC_PRINTF_DEBUG  (1)
+#define HC_PRINTF_DEBUG  (0)
 
 namespace hc {
 
@@ -57,7 +57,7 @@ enum PrintfError {
   ,PRINTF_FORMAT_BUFFER_OVERFLOW = 2
 };
 
-static inline PrintfPacket* createPrintfBuffer(hc::accelerator& a, const unsigned int numElements, char* printfFormatBuffer) {
+static inline PrintfPacket* createPrintfBuffer(hc::accelerator& a, const unsigned int numElements, char*& printfFormatBuffer) {
   PrintfPacket* printfBuffer = NULL;
   if (numElements > 5) {
     printfBuffer = hc::am_alloc(sizeof(PrintfPacket) * numElements, a, amHostCoherent);
@@ -69,14 +69,14 @@ static inline PrintfPacket* createPrintfBuffer(hc::accelerator& a, const unsigne
     printfBuffer[1].type = PRINTF_BUFFER_CURSOR;
     printfBuffer[1].data.ui = 4;
     printfBuffer[2].type = PRINTF_FORMAT_BUFFER_SIZE;
-    printfBuffer[2].data.ui = numElements;
+    printfBuffer[2].data.ui = numElements * 8;
     printfBuffer[3].type = PRINTF_FORMAT_BUFFER_CURSOR;
     printfBuffer[3].data.ui = 0;
   }
   return printfBuffer;
 }
 
-void deletePrintfBuffer(PrintfPacket* buffer, char* fbuffer) {
+void deletePrintfBuffer(PrintfPacket*& buffer, char*& fbuffer) {
   hc::am_free(buffer);
   hc::am_free(fbuffer);
   buffer = NULL;
@@ -112,7 +112,7 @@ static inline PrintfError process_str_batch(PrintfPacket* queue, char* fbuffer, 
   if (queue[3].data.ui > queue[2].data.ui){
     return PRINTF_FORMAT_BUFFER_OVERFLOW;
   }
-  copy_n(&fbuffer[fb_offset], fstring, fstr_len + 1);
+  copy_n(&fbuffer[fb_offset], fstring, fstr_len);
   fbuffer[fb_offset + fstr_len] = '\0';
   queue[offset].set(&fbuffer[fb_offset]);
   return PRINTF_SUCCESS;
