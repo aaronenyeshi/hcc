@@ -178,6 +178,14 @@ HCC_BC_LIBS="$ROCM_LIB/hc.amdgcn.bc $ROCM_LIB/opencl.amdgcn.bc $ROCM_LIB/ocml.am
 HCC_BC_LIBS="$HCC_BC_LIBS  $HCC_EXTRA_LIBRARIES $HCC_EXTRA_ARCH_FILE"
 
 $LINK -suppress-warnings -o $2.linked.bc $2.promote.bc $HCC_BC_LIBS
+#HCC_BC_FILES="${HCC_BC_LIBS[@]} $2.promote.bc"
+#echo "$HCC_BC_FILES"
+#$BINDIR/llvm-lto -thinlto-action=thinlink $HCC_BC_FILES -o $2.thinlto.index
+#$BINDIR/llvm-lto -thinlto-action=import $HCC_BC_FILES -thinlto-index=$2.thinlto.index
+#for ((i=0;i<${#HCC_BC_FILES[@]};i++)); do
+#    HCC_BC_FILES[i]="${HCC_BC_FILES[i]}.thinlto.imported.bc"
+#done
+#$BINDIR/llvm-lto -thinlto-action=optimize $HCC_BC_FILES -thinlto-index=$2.thinlto.index
 
 # error handling for llvm-link
 RETVAL=$?
@@ -194,7 +202,14 @@ fi
 #  -disable-simplify-libcalls:  prevents transforming loops into library calls such as memset, memcopy on GPU
 # Teach LLVM inliner we do want all functions used by a kernel be inlined
 # by assigning a big iniling threshold value
-$OPT -inline -inline-threshold=1048576 -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -infer-address-spaces -amdgpu-internalize-symbols -disable-simplify-libcalls $KMOPTOPT -verify $2.linked.bc -o $2.opt.bc
+#for BC_FILE in ${HCC_BC_FILES[@]}; do
+  $OPT -inline -inline-threshold=1048576 -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -infer-address-spaces -amdgpu-internalize-symbols -disable-simplify-libcalls $KMOPTOPT -verify $2.linked.bc -o $2.opt.bc
+#  { $OPT -inline -inline-threshold=1048576 -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -infer-address-spaces -amdgpu-internalize-symbols -disable-simplify-libcalls $KMOPTOPT -verify $BC_FILE.thinlto.imported.bc -o $BC_FILE.opt.bc;
+#  $LLC $KMOPTLLC -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -filetype=asm -o $BC_FILE.isabin $BC_FILE.opt.bc; } &
+#  HCC_ISABIN_FILES+=" $BC_FILE.isabin"
+
+#done
+#wait
 
 # error handling for opt
 RETVAL=$?
@@ -231,6 +246,8 @@ if [ $KMDUMPISA == "1" ]; then
   mv $2.isa ${KMDUMPDIR}/dump-$AMDGPU_TARGET.isa
 fi
 
+#echo "$HCC_ISABIN_FILES"
+#$LLD -shared $HCC_ISABIN_FILES -o $2
 $LLD -shared $2.isabin -o $2
 
 # error handling for ld.lld
@@ -245,4 +262,4 @@ if [ $KMDUMPISA == "1" ]; then
 fi
 
 # remove temp file
-rm -f $2.promote.bc $2.linked.bc $2.opt.bc $2.isabin $2.isa
+#rm -f $2.promote.bc $2.linked.bc $2.opt.bc $2.isabin $2.isa
