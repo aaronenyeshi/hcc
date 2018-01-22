@@ -171,7 +171,7 @@ _thinlto_target_helper() {
   for KERNEL in ${LinkKernels[@]}
   do
     LINK_IMPORTED_KERNEL_ARGS+=( $KERNEL-$AMDGPU_TARGET.imported.bc )
-    $LINK -suppress-warnings -o $KERNEL-$AMDGPU_TARGET.imported.bc $KERNEL.thinlto.imported.bc $HCC_BC_LIBS
+    $LINK -suppress-warnings $KERNEL.thinlto.imported.bc $HCC_BC_LIBS | $OPT -module-hash -module-summary - -o $KERNEL-$AMDGPU_TARGET.imported.bc
   done
 
   if [ $VERBOSE != 0 ]; then
@@ -181,7 +181,7 @@ _thinlto_target_helper() {
 
   # perform parallel opt and llc in-program llvm-lto and
   # specify the opt and codegen passes to be added
-  $LTO -thinlto -thinlto-action=optllc "${LINK_IMPORTED_KERNEL_ARGS[@]}" -load $LOAD_PASS_LIB/LLVMSelectAcceleratorCode@CMAKE_SHARED_LIBRARY_SUFFIX@ -select-accelerator-code -dce -globaldce -always-inline -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -infer-address-spaces -amdgpu-internalize-symbols -lto-freestanding -enable-si-insert-waitcnts=0 $KMOPTOPT -codegen-opt-level=$KMOPTLLC -thinlto-save-temps="$TEMP_DIR/"
+  $LTO -thinlto -thinlto-action=optllc "${LINK_IMPORTED_KERNEL_ARGS[@]}" -load $LOAD_PASS_LIB/LLVMSelectAcceleratorCode@CMAKE_SHARED_LIBRARY_SUFFIX@ -select-accelerator-code -dce -globaldce -always-inline -mtriple amdgcn--amdhsa-amdgiz -mcpu=$AMDGPU_TARGET -infer-address-spaces -amdgpu-internalize-symbols -lto-freestanding -enable-si-insert-waitcnts=0 $KMOPTOPT -codegen-opt-level=$KMOPTLLC -thinlto-save-temps="$TEMP_DIR/" -thinlto-cache-dir="/opt/rocm/hcc-cache/"
 
   # since thinlto has multiple kernel files, we will dump all the optimized kernel files
   if [ $KMDUMPLLVM == "1" ]; then
